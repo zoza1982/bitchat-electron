@@ -31,7 +31,7 @@ export class BinaryProtocol {
     }
 
     // Calculate total buffer size
-    let bufferSize = 13 + 8 + packet.payload.length; // Header + SenderID + Payload
+    let bufferSize = 15 + 8 + packet.payload.length; // Header (15 bytes) + SenderID + Payload
     if (packet.recipientID) {
       bufferSize += 8;
     }
@@ -93,7 +93,7 @@ export class BinaryProtocol {
    * Decodes a binary buffer into a BitchatPacket
    */
   static decode(data: Buffer): BitchatPacket {
-    if (data.length < 13) {
+    if (data.length < 15) {
       throw new Error('Invalid packet: too small for header');
     }
 
@@ -115,7 +115,7 @@ export class BinaryProtocol {
     const isCompressed = (flags & PacketFlags.IS_COMPRESSED) !== 0;
 
     // Calculate expected size
-    let expectedSize = 13 + 8 + payloadLength; // Header + SenderID + Payload
+    let expectedSize = 15 + 8 + payloadLength; // Header (15 bytes) + SenderID + Payload
     if (hasRecipient) {
       expectedSize += 8;
     }
@@ -128,28 +128,24 @@ export class BinaryProtocol {
     }
 
     // Read SenderID
-    const senderID = Buffer.alloc(8);
-    data.copy(senderID, 0, offset, offset + 8);
+    const senderID = data.slice(offset, offset + 8);
     offset += 8;
 
     // Read RecipientID if present
     let recipientID: Buffer | undefined;
     if (hasRecipient) {
-      recipientID = Buffer.alloc(8);
-      data.copy(recipientID, 0, offset, offset + 8);
+      recipientID = data.slice(offset, offset + 8);
       offset += 8;
     }
 
     // Read payload
-    const payload = Buffer.alloc(payloadLength);
-    data.copy(payload, 0, offset, offset + payloadLength);
+    const payload = data.slice(offset, offset + payloadLength);
     offset += payloadLength;
 
     // Read signature if present
     let signature: Buffer | undefined;
     if (hasSignature) {
-      signature = Buffer.alloc(64);
-      data.copy(signature, 0, offset, offset + 64);
+      signature = data.slice(offset, offset + 64);
       offset += 64;
     }
 

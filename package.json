@@ -56,9 +56,6 @@
     }
   },
   "dependencies": {
-    "@abandonware/bleno": "^0.5.1",
-    "@abandonware/noble": "^1.9.2",
-    "chacha20-poly1305": "^1.0.0",
     "electron-updater": "^6.1.7",
     "keytar": "^7.9.0",
     "nostr-tools": "^2.0.0",
