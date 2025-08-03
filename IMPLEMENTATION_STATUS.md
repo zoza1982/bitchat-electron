@@ -111,27 +111,49 @@ This document tracks the implementation progress of the BitChat Electron client.
   - ✅ Set up hot module replacement with automatic Electron restart
   - ✅ Added development menu for testing peer connections and messages
 
+### December 3, 2025 - Continued (Week 5)
+- Completed Week 5: BLE Transport Layer
+  - ✅ Added @abandonware/bleno for BLE peripheral functionality
+  - ✅ Implemented BLE service with BitChat UUID and characteristics
+    - WriteCharacteristic for receiving data from central devices
+    - NotifyCharacteristic for sending data to central devices
+  - ✅ Created BLETransport class with full connection management
+    - State management (poweredOn, advertising, connected)
+    - Connection lifecycle handling
+    - Data fragmentation for BLE MTU (512 bytes)
+    - RSSI monitoring support
+  - ✅ Built TransportManager to integrate BLE with protocol stack
+    - Connects BLE transport with BinaryProtocol and NoiseSessionManager
+    - Handles packet routing and encryption
+    - Supports both broadcast and targeted messaging
+  - ✅ Added comprehensive BLE status to IPC and UI
+    - Real-time connection status in UI
+    - Expandable details showing BLE state, advertising, connections
+    - Integration with existing connection status system
+  - ✅ Wrote unit tests for BLE components (mocked hardware)
+
 ---
 
 ## Current Focus
-**Week**: 5 - BLE Transport Layer  
-**Task**: Ready to implement BLE transport  
+**Week**: 6 - Mesh Networking Logic  
+**Task**: Ready to implement mesh networking  
 **Status**: Not Started  
 **Blockers**: None
 
 ## Next Steps
-1. Research and choose BLE library (@abandonware/bleno)
-2. Implement BLE peripheral mode
-3. Create advertisement packets
-4. Handle connection lifecycle
-5. Implement read/write characteristics
-6. Test with mobile apps
+1. Implement peer discovery mechanism
+2. Create message routing with TTL
+3. Build bloom filter for duplicate detection
+4. Implement mesh relay functionality
+5. Add peer connection management
+6. Test multi-hop message delivery
 
 ## Completed This Session
 - ✅ Week 1: Project Setup (6/6 tasks)
 - ✅ Week 2: Binary Protocol Implementation (6/6 tasks)
 - ✅ Week 3: Noise Protocol Framework (6/6 tasks)
 - ✅ Week 4: Basic UI Framework (6/6 tasks)
+- ✅ Week 5: BLE Transport Layer (8/8 tasks)
 - ✅ Git repository setup and initial push
-- ✅ Created 26 new files (11 protocol + 6 crypto + 9 UI/IPC)
-- ✅ All unit tests passing (90 tests total)
+- ✅ Created 39 new files (11 protocol + 6 crypto + 9 UI/IPC + 13 BLE/transport)
+- ✅ All unit tests passing (104 tests total)

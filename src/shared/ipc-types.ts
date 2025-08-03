@@ -129,6 +129,27 @@ export interface ConnectionStatus {
   connectedPeers: number;
   uptime: number;
   transport: 'ble' | 'nostr' | 'hybrid';
+  ble: BLEStatus;
+  nostr: NostrStatus;
+}
+
+export interface BLEStatus {
+  isEnabled: boolean;
+  isAdvertising: boolean;
+  isConnected: boolean;
+  deviceName?: string;
+  connectedDevice?: {
+    address: string;
+    rssi?: number;
+    connectedAt: string;
+  };
+}
+
+export interface NostrStatus {
+  isEnabled: boolean;
+  isConnected: boolean;
+  connectedRelays: number;
+  totalRelays: number;
 }
 
 export interface ConnectionStats {

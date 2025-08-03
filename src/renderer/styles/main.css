@@ -501,6 +501,112 @@ body {
   text-align: right;
 }
 
+/* Connection Status */
+.connection-status-container {
+  background-color: #252525;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.connection-status-bar {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.connection-status-bar:hover {
+  background-color: #2a2a2a;
+}
+
+.connection-status-bar.connected {
+  border-left: 3px solid #4CAF50;
+}
+
+.connection-status-bar.connecting {
+  border-left: 3px solid #ff9800;
+}
+
+.connection-status-bar.disconnected {
+  border-left: 3px solid #f44336;
+}
+
+.transport-icon {
+  font-size: 1.25rem;
+}
+
+.transport-text {
+  flex: 1;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.expand-icon {
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.connection-details {
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-top: 1px solid #3a3a3a;
+}
+
+.transport-section {
+  margin-bottom: 1.5rem;
+}
+
+.transport-section:last-child {
+  margin-bottom: 0;
+}
+
+.transport-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.status-label {
+  width: 100px;
+  color: #888;
+}
+
+.status-value {
+  color: #e0e0e0;
+}
+
+.status-value.enabled,
+.status-value.active {
+  color: #4CAF50;
+}
+
+.status-value.disabled,
+.status-value.inactive {
+  color: #f44336;
+}
+
+.uptime-section {
+  padding-top: 0.5rem;
+  border-top: 1px solid #3a3a3a;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;

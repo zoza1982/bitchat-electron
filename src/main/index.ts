@@ -146,9 +146,9 @@ const createDevMenu = (): void => {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(() => {
-  // Initialize session manager
-  initializeSessionManager();
+app.whenReady().then(async () => {
+  // Initialize session manager and transport
+  await initializeSessionManager();
   
   // Register IPC handlers
   registerIPCHandlers();

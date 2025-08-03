@@ -11,11 +11,13 @@ import {
 } from '../shared/ipc-types';
 import { NoiseSessionManager } from './crypto/NoiseSessionManager';
 import { KeyManager } from './crypto/KeyManager';
-import { ErrorCodes } from '../shared/constants';
+import { TransportManager } from './transport/TransportManager';
+import { MessageType, ErrorCodes } from '../shared/constants';
 
-// Mock data for now - will be replaced with actual implementations
+// Core services
 let localKeyPair = KeyManager.generateNoiseKeyPair();
 let sessionManager: NoiseSessionManager | null = null;
+let transportManager: TransportManager | null = null;
 let settings: AppSettings = {
   nickname: 'Anonymous',
   autoConnect: true,
@@ -29,8 +31,8 @@ let settings: AppSettings = {
 // Mock peer data
 const mockPeers: Map<string, PeerInfo> = new Map();
 
-// Initialize session manager
-export function initializeSessionManager(): void {
+// Initialize session manager and transport
+export async function initializeSessionManager(): Promise<void> {
   sessionManager = new NoiseSessionManager(localKeyPair);
   
   // Set up event listeners
@@ -54,6 +56,111 @@ export function initializeSessionManager(): void {
       window.webContents.send(IPC_CHANNELS.NOISE_HANDSHAKE_FAILED, event);
     });
   });
+
+  // Initialize transport manager
+  transportManager = new TransportManager({
+    deviceName: settings.nickname || 'BitChat',
+    sessionManager
+  });
+
+  // Set up transport event listeners
+  transportManager.on('transport:ready', (transport: string) => {
+    console.log(`Transport ready: ${transport}`);
+    broadcastToAllWindows(IPC_CHANNELS.CONNECTION_STATUS, getConnectionStatus());
+  });
+
+  transportManager.on('peer:connected', (peer: any) => {
+    console.log('Peer connected:', peer);
+    const peerInfo: PeerInfo = {
+      id: peer.id,
+      nickname: undefined,
+      fingerprint: undefined,
+      isConnected: true,
+      isFavorite: false,
+      isBlocked: false,
+      lastSeen: new Date().toISOString(),
+      sessionEstablished: false
+    };
+    mockPeers.set(peer.id, peerInfo);
+    
+    broadcastToAllWindows(IPC_CHANNELS.PEER_CONNECTED, {
+      id: peer.id,
+      isConnected: true,
+      isFavorite: false
+    });
+  });
+
+  transportManager.on('peer:disconnected', (peerId: string) => {
+    console.log('Peer disconnected:', peerId);
+    const peer = mockPeers.get(peerId);
+    if (peer) {
+      peer.isConnected = false;
+      peer.lastSeen = new Date().toISOString();
+    }
+    
+    broadcastToAllWindows(IPC_CHANNELS.PEER_DISCONNECTED, peerId);
+  });
+
+  transportManager.on('packet', (packet: any) => {
+    console.log('Received packet:', packet);
+    // Handle incoming messages
+    if (packet.messageType === MessageType.MESSAGE) {
+      const message = {
+        id: Date.now().toString(),
+        senderId: packet.senderID.toString('hex'),
+        senderNickname: mockPeers.get(packet.senderID.toString('hex'))?.nickname,
+        content: packet.payload.toString('utf8'),
+        timestamp: new Date().toISOString(),
+        isPrivate: !!packet.recipientID,
+        isEncrypted: packet.isEncrypted || false,
+        isSent: false,
+        isDelivered: false,
+        isRead: false
+      };
+      
+      broadcastToAllWindows(IPC_CHANNELS.MESSAGE_RECEIVED, message);
+    }
+  });
+
+  // Initialize transport
+  try {
+    await transportManager.initialize();
+  } catch (error) {
+    console.error('Failed to initialize transport:', error);
+  }
+}
+
+// Helper function to get connection status
+function getConnectionStatus(): ConnectionStatus {
+  const transportStatus = transportManager?.getStatus() || {
+    ble: { isEnabled: false, isAdvertising: false, isConnected: false, connection: null },
+    nostr: { isEnabled: false },
+    peers: []
+  };
+
+  return {
+    isConnected: transportStatus.peers.length > 0,
+    connectedPeers: transportStatus.peers.length,
+    uptime: process.uptime(),
+    transport: transportStatus.ble.isConnected ? 'ble' : 'nostr',
+    ble: {
+      isEnabled: transportStatus.ble.isEnabled,
+      isAdvertising: transportStatus.ble.isAdvertising,
+      isConnected: transportStatus.ble.isConnected,
+      deviceName: settings.nickname || 'BitChat',
+      connectedDevice: transportStatus.ble.connection ? {
+        address: transportStatus.ble.connection.address,
+        rssi: transportStatus.ble.connection.rssi,
+        connectedAt: transportStatus.ble.connection.connectedAt.toISOString()
+      } : undefined
+    },
+    nostr: {
+      isEnabled: false,
+      isConnected: false,
+      connectedRelays: 0,
+      totalRelays: 0
+    }
+  };
 }
 
 // Register all IPC handlers
@@ -70,28 +177,43 @@ export function registerIPCHandlers(): void {
   // Message handlers
   ipcMain.handle(IPC_CHANNELS.MESSAGE_SEND, async (event: IpcMainInvokeEvent, request: SendMessageRequest) => {
     try {
-      // TODO: Implement actual message sending
-      console.log('Sending message:', request);
+      const payload = Buffer.from(request.content, 'utf8');
       
-      // Emit a mock received message for testing
-      setTimeout(() => {
-        const windows = BrowserWindow.getAllWindows();
-        windows.forEach(window => {
-          window.webContents.send(IPC_CHANNELS.MESSAGE_RECEIVED, {
-            id: Date.now().toString(),
-            senderId: 'self',
-            senderNickname: settings.nickname,
-            recipientId: request.recipientId,
-            content: request.content,
-            timestamp: new Date().toISOString(),
-            isPrivate: !!request.recipientId,
-            isEncrypted: !!request.recipientId,
-            isSent: true,
-            isDelivered: false,
-            isRead: false
-          });
-        });
-      }, 100);
+      if (request.recipientId && transportManager) {
+        // Send private message
+        const success = await transportManager.sendPacket(
+          request.recipientId,
+          MessageType.MESSAGE,
+          payload
+        );
+        
+        if (!success) {
+          throw new Error('Failed to send message');
+        }
+      } else if (transportManager) {
+        // Broadcast message
+        await transportManager.broadcastPacket(
+          MessageType.MESSAGE,
+          payload
+        );
+      }
+      
+      // Echo back to sender
+      const message = {
+        id: Date.now().toString(),
+        senderId: localKeyPair.publicKey.toString('hex').slice(0, 16),
+        senderNickname: settings.nickname,
+        recipientId: request.recipientId,
+        content: request.content,
+        timestamp: new Date().toISOString(),
+        isPrivate: !!request.recipientId,
+        isEncrypted: !!request.recipientId,
+        isSent: true,
+        isDelivered: false,
+        isRead: false
+      };
+      
+      broadcastToAllWindows(IPC_CHANNELS.MESSAGE_RECEIVED, message);
       
       return;
     } catch (error) {
@@ -167,12 +289,7 @@ export function registerIPCHandlers(): void {
   
   // Connection handlers
   ipcMain.handle(IPC_CHANNELS.CONNECTION_STATUS, async (): Promise<ConnectionStatus> => {
-    return {
-      isConnected: true, // TODO: Get actual status
-      connectedPeers: mockPeers.size,
-      uptime: process.uptime(),
-      transport: 'ble'
-    };
+    return getConnectionStatus();
   });
   
   ipcMain.handle(IPC_CHANNELS.CONNECTION_STATS, async (): Promise<ConnectionStats> => {

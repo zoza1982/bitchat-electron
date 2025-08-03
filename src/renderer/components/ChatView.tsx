@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ContactList, { Contact } from './ContactList';
 import MessageThread, { Message } from './MessageThread';
 import MessageInput from './MessageInput';
+import ConnectionStatus from './ConnectionStatus';
 
 const ChatView: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -118,6 +119,7 @@ const ChatView: React.FC = () => {
   return (
     <div className="chat-container">
       <div className="chat-sidebar">
+        <ConnectionStatus />
         <ContactList
           contacts={contacts}
           selectedContactId={selectedContactId}

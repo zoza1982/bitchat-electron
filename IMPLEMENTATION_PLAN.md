@@ -75,23 +75,23 @@ bitchat-electron/
 - [ ] Add fingerprint generation
 - [ ] Test encryption/decryption flows
 
-### Week 4: Basic UI Framework
-- [ ] Set up React in renderer process
-- [ ] Create main window with basic layout
-- [ ] Implement IPC communication structure
-- [ ] Build preload script with secure API
-- [ ] Create basic chat interface mockup
-- [ ] Set up hot module replacement for development
+### Week 4: Basic UI Framework ✅
+- [x] Set up React in renderer process
+- [x] Create main window with basic layout
+- [x] Implement IPC communication structure
+- [x] Build preload script with secure API
+- [x] Create basic chat interface mockup
+- [x] Set up hot module replacement for development
 
 ## Phase 2: Bluetooth Integration (Weeks 5-8)
 
-### Week 5: BLE Foundation
-- [ ] Integrate Noble/Bleno libraries
-- [ ] Implement platform-specific BLE wrappers
-- [ ] Create BluetoothMeshService base class
-- [ ] Set up service and characteristic UUIDs
-- [ ] Handle BLE permissions per platform
-- [ ] Test basic BLE connectivity
+### Week 5: BLE Foundation ✅
+- [x] Integrate Noble/Bleno libraries
+- [x] Implement platform-specific BLE wrappers
+- [x] Create BluetoothMeshService base class
+- [x] Set up service and characteristic UUIDs
+- [x] Handle BLE permissions per platform
+- [x] Test basic BLE connectivity
 
 ### Week 6: Mesh Networking Logic
 - [ ] Implement peer discovery mechanism

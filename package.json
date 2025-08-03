@@ -59,6 +59,7 @@
     }
   },
   "dependencies": {
+    "@abandonware/bleno": "^0.6.1",
     "electron-updater": "^6.1.7",
     "keytar": "^7.9.0",
     "nostr-tools": "^2.0.0",
