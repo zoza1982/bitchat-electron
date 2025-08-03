@@ -1,0 +1,10 @@
+dist
+release
+node_modules
+*.md
+*.json
+.gitignore
+.eslintignore
+coverage
+.nyc_output
+*.log
