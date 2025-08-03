@@ -1,124 +1,165 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  timestamp: Date;
-  isPrivate: boolean;
-}
-
-interface Peer {
-  id: string;
-  nickname: string;
-  isConnected: boolean;
-}
+import React, { useState, useEffect } from 'react';
+import ContactList, { Contact } from './ContactList';
+import MessageThread, { Message } from './MessageThread';
+import MessageInput from './MessageInput';
 
 const ChatView: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [peers, setPeers] = useState<Peer[]>([]);
-  const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState<string | undefined>();
+  const [currentUserId] = useState('self'); // TODO: Get from session manager
+  
   useEffect(() => {
-    // Load initial peers
-    loadPeers();
+    // Load initial contacts
+    loadContacts();
     
     // Set up message listener
     window.bitchatAPI.onMessageReceived((message) => {
       setMessages(prev => [...prev, {
-        ...message,
-        timestamp: new Date(message.timestamp)
+        id: message.id || Date.now().toString(),
+        senderId: message.senderId,
+        senderNickname: message.senderNickname,
+        recipientId: message.recipientId,
+        content: message.content,
+        timestamp: new Date(message.timestamp),
+        isPrivate: message.isPrivate || false,
+        isEncrypted: message.isEncrypted || false,
+        isSent: false,
+        isDelivered: message.isDelivered,
+        isRead: message.isRead
       }]);
     });
     
     // Set up peer listeners
     window.bitchatAPI.onPeerConnected((peer) => {
-      setPeers(prev => [...prev, peer]);
+      setContacts(prev => {
+        const existing = prev.find(c => c.id === peer.id);
+        if (existing) {
+          return prev.map(c => c.id === peer.id ? { ...c, isConnected: true } : c);
+        }
+        return [...prev, {
+          id: peer.id,
+          nickname: peer.nickname,
+          fingerprint: peer.fingerprint,
+          isConnected: true,
+          isFavorite: false
+        }];
+      });
     });
     
     window.bitchatAPI.onPeerDisconnected((peerId) => {
-      setPeers(prev => prev.filter(p => p.id !== peerId));
+      setContacts(prev => prev.map(c => 
+        c.id === peerId ? { ...c, isConnected: false, lastSeen: new Date() } : c
+      ));
     });
     
     // Cleanup
     return () => {
       window.bitchatAPI.removeAllListeners('message:received');
+      window.bitchatAPI.removeAllListeners('peer:connected');
+      window.bitchatAPI.removeAllListeners('peer:disconnected');
     };
   }, []);
 
-  useEffect(() => {
-    // Auto-scroll to bottom
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const loadPeers = async () => {
+  const loadContacts = async () => {
     try {
       const peerList = await window.bitchatAPI.getPeers();
-      setPeers(peerList);
+      setContacts(peerList.map((peer: any) => ({
+        id: peer.id,
+        nickname: peer.nickname,
+        fingerprint: peer.fingerprint,
+        isConnected: peer.isConnected || false,
+        isFavorite: peer.isFavorite || false,
+        lastSeen: peer.lastSeen ? new Date(peer.lastSeen) : undefined,
+        unreadCount: 0
+      })));
     } catch (error) {
-      console.error('Failed to load peers:', error);
+      console.error('Failed to load contacts:', error);
     }
   };
 
-  const sendMessage = async () => {
-    if (!inputText.trim()) return;
-    
+  const handleSendMessage = async (content: string, isPrivate: boolean) => {
     try {
-      await window.bitchatAPI.sendMessage(inputText);
-      setInputText('');
+      const recipient = isPrivate ? selectedContactId : undefined;
+      await window.bitchatAPI.sendMessage(content, recipient);
+      
+      // Add message to local state
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        senderId: currentUserId,
+        recipientId: recipient,
+        content,
+        timestamp: new Date(),
+        isPrivate,
+        isEncrypted: isPrivate && !!selectedContactId,
+        isSent: true,
+        isDelivered: false,
+        isRead: false
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  const handleContactSelect = (contactId: string) => {
+    setSelectedContactId(contactId === selectedContactId ? undefined : contactId);
   };
+
+  const handleContactAction = async (contactId: string, action: string) => {
+    // TODO: Implement contact actions (favorite, unfavorite, block)
+    console.log(`Contact action: ${action} on ${contactId}`);
+  };
+
+  const selectedContact = contacts.find(c => c.id === selectedContactId);
+  const isEncrypted = !!selectedContact && selectedContact.isConnected;
 
   return (
     <div className="chat-container">
       <div className="chat-sidebar">
-        <h3>Connected Peers ({peers.length})</h3>
-        <ul className="peer-list">
-          {peers.map(peer => (
-            <li key={peer.id} className="peer-item">
-              <span className="peer-nickname">{peer.nickname || peer.id.slice(0, 8)}</span>
-            </li>
-          ))}
-        </ul>
+        <ContactList
+          contacts={contacts}
+          selectedContactId={selectedContactId}
+          onContactSelect={handleContactSelect}
+          onContactAction={handleContactAction}
+        />
       </div>
       
       <div className="chat-main">
-        <div className="messages-container">
-          {messages.map(message => (
-            <div key={message.id} className={`message ${message.isPrivate ? 'private' : ''}`}>
-              <span className="message-sender">{message.sender}:</span>
-              <span className="message-content">{message.content}</span>
-              <span className="message-time">
-                {message.timestamp.toLocaleTimeString()}
-              </span>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
+        <div className="chat-header">
+          {selectedContact ? (
+            <>
+              <div className="chat-header-info">
+                <h3>{selectedContact.nickname || selectedContact.id.slice(0, 8)}</h3>
+                <span className="chat-header-status">
+                  {selectedContact.isConnected ? 'Online' : 'Offline'}
+                  {isEncrypted && ' • Encrypted'}
+                </span>
+              </div>
+              {selectedContact.fingerprint && (
+                <div className="chat-header-fingerprint" title={selectedContact.fingerprint}>
+                  {selectedContact.fingerprint.slice(0, 16)}...
+                </div>
+              )}
+            </>
+          ) : (
+            <h3>Broadcast Channel</h3>
+          )}
         </div>
         
-        <div className="input-container">
-          <textarea
-            className="message-input"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message... (Commands: /nick, /msg, /who, /fav)"
-            rows={2}
-          />
-          <button className="send-button" onClick={sendMessage}>
-            Send
-          </button>
-        </div>
+        <MessageThread
+          messages={messages}
+          currentUserId={currentUserId}
+          currentContactId={selectedContactId}
+        />
+        
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          currentContactId={selectedContactId}
+          isEncrypted={isEncrypted}
+          disabled={selectedContact ? !selectedContact.isConnected : false}
+        />
       </div>
     </div>
   );

@@ -35,13 +35,13 @@ This document tracks the implementation progress of the BitChat Electron client.
 - [x] Add fingerprint generation
 - [x] Test encryption/decryption flows
 
-### Week 4: Basic UI Framework
-- [ ] Set up React in renderer process
-- [ ] Create main window with basic layout
-- [ ] Implement IPC communication structure
-- [ ] Build preload script with secure API
-- [ ] Create basic chat interface mockup
-- [ ] Set up hot module replacement for development
+### Week 4: Basic UI Framework ✅
+- [x] Set up React in renderer process
+- [x] Create main window with basic layout
+- [x] Implement IPC communication structure
+- [x] Build preload script with secure API
+- [x] Create basic chat interface mockup
+- [x] Set up hot module replacement for development
 
 ---
 
@@ -96,26 +96,42 @@ This document tracks the implementation progress of the BitChat Electron client.
   - ✅ Fixed Noise protocol message index tracking
   - ✅ All 90 tests passing
 
+### December 3, 2025 - Continued (Week 4)
+- Completed Week 4: Basic UI Framework
+  - ✅ Enhanced main window with security settings and proper layout
+  - ✅ Created modular React component structure
+    - ContactList component with search, favorites, and online status
+    - MessageThread component with encryption indicators and read receipts
+    - MessageInput component with auto-resize and command help
+  - ✅ Implemented comprehensive IPC communication
+    - Created type-safe IPC channels and handlers
+    - Added secure preload script with validated callbacks
+    - Implemented mock handlers for testing
+  - ✅ Enhanced UI with modern dark theme and responsive design
+  - ✅ Set up hot module replacement with automatic Electron restart
+  - ✅ Added development menu for testing peer connections and messages
+
 ---
 
 ## Current Focus
-**Week**: 4 - Basic UI Framework  
-**Task**: Ready to start React UI implementation  
+**Week**: 5 - BLE Transport Layer  
+**Task**: Ready to implement BLE transport  
 **Status**: Not Started  
 **Blockers**: None
 
 ## Next Steps
-1. Set up React in renderer process
-2. Create main window with basic layout
-3. Implement IPC communication structure
-4. Build preload script with secure API
-5. Create basic chat interface mockup
-6. Set up hot module replacement for development
+1. Research and choose BLE library (@abandonware/bleno)
+2. Implement BLE peripheral mode
+3. Create advertisement packets
+4. Handle connection lifecycle
+5. Implement read/write characteristics
+6. Test with mobile apps
 
 ## Completed This Session
 - ✅ Week 1: Project Setup (6/6 tasks)
 - ✅ Week 2: Binary Protocol Implementation (6/6 tasks)
 - ✅ Week 3: Noise Protocol Framework (6/6 tasks)
+- ✅ Week 4: Basic UI Framework (6/6 tasks)
 - ✅ Git repository setup and initial push
-- ✅ Created 17 new files (11 protocol + 6 crypto)
+- ✅ Created 26 new files (11 protocol + 6 crypto + 9 UI/IPC)
 - ✅ All unit tests passing (90 tests total)
