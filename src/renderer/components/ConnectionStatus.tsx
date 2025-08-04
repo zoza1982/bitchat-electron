@@ -37,12 +37,17 @@ const ConnectionStatus: React.FC = () => {
   }
 
   const getTransportIcon = () => {
+    if (status.transport === 'hybrid') return '📶🌐';
     if (status.ble.isConnected) return '📶';
     if (status.nostr.isConnected) return '🌐';
+    if (status.ble.isAdvertising || status.nostr.isEnabled) return '🔄';
     return '🔌';
   };
 
   const getTransportText = () => {
+    if (status.transport === 'hybrid') {
+      return `Hybrid • ${status.connectedPeers} peer${status.connectedPeers !== 1 ? 's' : ''}`;
+    }
     if (status.ble.isConnected) {
       return `BLE • ${status.connectedPeers} peer${status.connectedPeers !== 1 ? 's' : ''}`;
     }
@@ -51,6 +56,12 @@ const ConnectionStatus: React.FC = () => {
     }
     if (status.ble.isAdvertising) {
       return 'BLE • Advertising...';
+    }
+    if (status.nostr.isEnabled && status.nostr.connectedRelays > 0) {
+      return `Nostr • ${status.nostr.connectedRelays}/${status.nostr.totalRelays} relays`;
+    }
+    if (status.nostr.isEnabled) {
+      return 'Nostr • Connecting...';
     }
     return 'Offline';
   };
@@ -113,12 +124,50 @@ const ConnectionStatus: React.FC = () => {
               </span>
             </div>
             {status.nostr.isEnabled && (
-              <div className="status-row">
-                <span className="status-label">Relays:</span>
-                <span className="status-value">
-                  {status.nostr.connectedRelays}/{status.nostr.totalRelays}
-                </span>
-              </div>
+              <>
+                <div className="status-row">
+                  <span className="status-label">Relays:</span>
+                  <span className="status-value">
+                    {status.nostr.connectedRelays}/{status.nostr.totalRelays}
+                  </span>
+                </div>
+                {status.nostr.publicKey && (
+                  <div className="status-row">
+                    <span className="status-label">Public Key:</span>
+                    <span className="status-value" title={status.nostr.publicKey}>
+                      {status.nostr.publicKey.substring(0, 16)}...
+                    </span>
+                  </div>
+                )}
+                {status.nostr.peers > 0 && (
+                  <div className="status-row">
+                    <span className="status-label">Nostr Peers:</span>
+                    <span className="status-value">{status.nostr.peers}</span>
+                  </div>
+                )}
+                {status.nostr.relays.length > 0 && (
+                  <div className="relay-list">
+                    <span className="status-label">Relay Status:</span>
+                    <div className="relay-details">
+                      {status.nostr.relays.map((relay, index) => (
+                        <div key={index} className="relay-item">
+                          <span className={`relay-status ${relay.status}`}>
+                            {relay.status === 'connected' ? '🟢' : 
+                             relay.status === 'connecting' ? '🟡' : 
+                             relay.status === 'error' ? '🔴' : '⚪'}
+                          </span>
+                          <span className="relay-url" title={relay.url}>
+                            {new URL(relay.url).hostname}
+                          </span>
+                          {relay.activeSubscriptions > 0 && (
+                            <span className="relay-subs">({relay.activeSubscriptions})</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

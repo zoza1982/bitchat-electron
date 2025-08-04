@@ -7,6 +7,8 @@ import {
   ConnectionStatus,
   ConnectionStats,
   AppSettings,
+  TransportPreferences,
+  NostrRelayRequest,
   AppError
 } from '../shared/ipc-types';
 import { NoiseSessionManager } from './crypto/NoiseSessionManager';
@@ -26,6 +28,31 @@ let settings: AppSettings = {
   theme: 'dark',
   fontSize: 'medium',
   blockedPeers: []
+};
+
+let transportPreferences: TransportPreferences = {
+  preferredTransport: 'auto',
+  autoConnect: true,
+  bleSettings: {
+    deviceName: 'BitChat Device',
+    autoAdvertise: true,
+    discoverabilityTimeout: 15
+  },
+  nostrSettings: {
+    autoConnectRelays: true,
+    maxRelayConnections: 5,
+    defaultRelays: [
+      'wss://relay.damus.io',
+      'wss://relay.primal.net',
+      'wss://offchain.pub'
+    ],
+    reconnectAttempts: 3
+  },
+  hybridSettings: {
+    priority: 'balanced',
+    fallbackBehavior: 'maintain-both',
+    connectionTimeout: 30
+  }
 };
 
 // Mock peer data
@@ -79,14 +106,20 @@ export async function initializeSessionManager(): Promise<void> {
       isFavorite: false,
       isBlocked: false,
       lastSeen: new Date().toISOString(),
-      sessionEstablished: false
+      sessionEstablished: false,
+      transport: peer.transport || 'ble',
+      nostrPublicKey: peer.publicKey,
+      bleAddress: peer.address
     };
     mockPeers.set(peer.id, peerInfo);
     
     broadcastToAllWindows(IPC_CHANNELS.PEER_CONNECTED, {
       id: peer.id,
       isConnected: true,
-      isFavorite: false
+      isFavorite: false,
+      transport: peer.transport || 'ble',
+      nostrPublicKey: peer.publicKey,
+      bleAddress: peer.address
     });
   });
 
@@ -133,32 +166,48 @@ export async function initializeSessionManager(): Promise<void> {
 // Helper function to get connection status
 function getConnectionStatus(): ConnectionStatus {
   const transportStatus = transportManager?.getStatus() || {
-    ble: { isEnabled: false, isAdvertising: false, isConnected: false, connection: null },
-    nostr: { isEnabled: false },
+    ble: { isEnabled: false, isAdvertising: false, isConnected: false, connections: [] },
+    nostr: { isEnabled: false, isConnected: false, publicKey: '', relays: [], peers: 0 },
     peers: []
   };
+
+  // Determine transport type based on what's connected
+  let transportType: 'ble' | 'nostr' | 'hybrid' = 'ble';
+  if (transportStatus.ble.isConnected && transportStatus.nostr.isConnected) {
+    transportType = 'hybrid';
+  } else if (transportStatus.nostr.isConnected) {
+    transportType = 'nostr';
+  }
 
   return {
     isConnected: transportStatus.peers.length > 0,
     connectedPeers: transportStatus.peers.length,
     uptime: process.uptime(),
-    transport: transportStatus.ble.isConnected ? 'ble' : 'nostr',
+    transport: transportType,
     ble: {
-      isEnabled: transportStatus.ble.isEnabled,
-      isAdvertising: transportStatus.ble.isAdvertising,
-      isConnected: transportStatus.ble.isConnected,
+      isEnabled: transportStatus.ble.isEnabled || false,
+      isAdvertising: transportStatus.ble.isAdvertising || false,
+      isConnected: transportStatus.ble.isConnected || false,
       deviceName: settings.nickname || 'BitChat',
-      connectedDevice: transportStatus.ble.connection ? {
-        address: transportStatus.ble.connection.address,
-        rssi: transportStatus.ble.connection.rssi,
-        connectedAt: transportStatus.ble.connection.connectedAt.toISOString()
+      connectedDevice: transportStatus.ble.connections && transportStatus.ble.connections.length > 0 ? {
+        address: transportStatus.ble.connections[0].address || 'Unknown',
+        rssi: transportStatus.ble.connections[0].rssi,
+        connectedAt: transportStatus.ble.connections[0].connectedAt || new Date().toISOString()
       } : undefined
     },
     nostr: {
-      isEnabled: false,
-      isConnected: false,
-      connectedRelays: 0,
-      totalRelays: 0
+      isEnabled: transportStatus.nostr.isEnabled || false,
+      isConnected: transportStatus.nostr.isConnected || false,
+      publicKey: transportStatus.nostr.publicKey,
+      connectedRelays: transportStatus.nostr.relays?.filter(r => r.status === 'connected').length || 0,
+      totalRelays: transportStatus.nostr.relays?.length || 0,
+      relays: transportStatus.nostr.relays?.map(relay => ({
+        url: relay.url,
+        status: relay.status,
+        error: relay.error,
+        activeSubscriptions: relay.activeSubscriptions || 0
+      })) || [],
+      peers: transportStatus.nostr.peers || 0
     }
   };
 }
@@ -311,6 +360,107 @@ export function registerIPCHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, async (event: IpcMainInvokeEvent, newSettings: Partial<AppSettings>) => {
     settings = { ...settings, ...newSettings };
     // TODO: Persist settings
+  });
+  
+  // Transport Preferences handlers
+  ipcMain.handle(IPC_CHANNELS.TRANSPORT_PREFERENCES_GET, async (): Promise<TransportPreferences> => {
+    return transportPreferences;
+  });
+  
+  ipcMain.handle(IPC_CHANNELS.TRANSPORT_PREFERENCES_SET, async (event: IpcMainInvokeEvent, newPreferences: Partial<TransportPreferences>) => {
+    transportPreferences = { ...transportPreferences, ...newPreferences };
+    
+    // Apply changes to transport manager if available
+    if (transportManager && newPreferences.bleSettings?.deviceName) {
+      // TODO: Update BLE device name
+      console.log('Updating BLE device name to:', newPreferences.bleSettings.deviceName);
+    }
+    
+    // TODO: Persist transport preferences
+    console.log('Updated transport preferences:', transportPreferences);
+  });
+  
+  ipcMain.handle(IPC_CHANNELS.TRANSPORT_PREFERENCES_RESET, async () => {
+    transportPreferences = {
+      preferredTransport: 'auto',
+      autoConnect: true,
+      bleSettings: {
+        deviceName: 'BitChat Device',
+        autoAdvertise: true,
+        discoverabilityTimeout: 15
+      },
+      nostrSettings: {
+        autoConnectRelays: true,
+        maxRelayConnections: 5,
+        defaultRelays: [
+          'wss://relay.damus.io',
+          'wss://relay.primal.net',
+          'wss://offchain.pub'
+        ],
+        reconnectAttempts: 3
+      },
+      hybridSettings: {
+        priority: 'balanced',
+        fallbackBehavior: 'maintain-both',
+        connectionTimeout: 30
+      }
+    };
+    
+    console.log('Reset transport preferences to defaults');
+  });
+  
+  // Nostr Relay Management handlers
+  ipcMain.handle(IPC_CHANNELS.NOSTR_RELAY_ADD, async (event: IpcMainInvokeEvent, url: string) => {
+    try {
+      if (transportManager) {
+        // TODO: Add relay to transport manager
+        console.log('Adding Nostr relay:', url);
+        
+        // Add to default relays if not already present
+        if (!transportPreferences.nostrSettings.defaultRelays.includes(url)) {
+          transportPreferences.nostrSettings.defaultRelays.push(url);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to add relay: ${error}`);
+    }
+  });
+  
+  ipcMain.handle(IPC_CHANNELS.NOSTR_RELAY_REMOVE, async (event: IpcMainInvokeEvent, url: string) => {
+    try {
+      if (transportManager) {
+        // TODO: Remove relay from transport manager
+        console.log('Removing Nostr relay:', url);
+        
+        // Remove from default relays
+        transportPreferences.nostrSettings.defaultRelays = 
+          transportPreferences.nostrSettings.defaultRelays.filter(relay => relay !== url);
+      }
+    } catch (error) {
+      throw new Error(`Failed to remove relay: ${error}`);
+    }
+  });
+  
+  ipcMain.handle(IPC_CHANNELS.NOSTR_RELAY_CONNECT, async (event: IpcMainInvokeEvent, url: string) => {
+    try {
+      if (transportManager) {
+        // TODO: Connect to specific relay
+        console.log('Connecting to Nostr relay:', url);
+      }
+    } catch (error) {
+      throw new Error(`Failed to connect to relay: ${error}`);
+    }
+  });
+  
+  ipcMain.handle(IPC_CHANNELS.NOSTR_RELAY_DISCONNECT, async (event: IpcMainInvokeEvent, url: string) => {
+    try {
+      if (transportManager) {
+        // TODO: Disconnect from specific relay
+        console.log('Disconnecting from Nostr relay:', url);
+      }
+    } catch (error) {
+      throw new Error(`Failed to disconnect from relay: ${error}`);
+    }
   });
 }
 

@@ -8,6 +8,9 @@ export interface Contact {
   isFavorite: boolean;
   lastSeen?: Date;
   unreadCount?: number;
+  transport: 'ble' | 'nostr' | 'both';
+  nostrPublicKey?: string;
+  bleAddress?: string;
 }
 
 interface ContactListProps {
@@ -55,9 +58,32 @@ const ContactList: React.FC<ContactListProps> = ({
           <div className="contact-name">
             {displayName}
             {contact.isFavorite && <span className="favorite-star">★</span>}
+            <div className="transport-badges">
+              {contact.transport === 'both' && (
+                <>
+                  <span className="transport-badge ble" title="Connected via Bluetooth">📶</span>
+                  <span className="transport-badge nostr" title="Connected via Nostr">🌐</span>
+                </>
+              )}
+              {contact.transport === 'ble' && (
+                <span className="transport-badge ble" title="Connected via Bluetooth">📶</span>
+              )}
+              {contact.transport === 'nostr' && (
+                <span className="transport-badge nostr" title="Connected via Nostr">🌐</span>
+              )}
+            </div>
           </div>
           <div className="contact-status">
-            {contact.isConnected ? 'Online' : `Last seen ${contact.lastSeen?.toLocaleDateString() || 'Never'}`}
+            {contact.isConnected ? (
+              <span>
+                Online
+                {contact.transport === 'both' && ' • Hybrid'}
+                {contact.transport === 'ble' && ' • BLE'}
+                {contact.transport === 'nostr' && ' • Nostr'}
+              </span>
+            ) : (
+              `Last seen ${contact.lastSeen?.toLocaleDateString() || 'Never'}`
+            )}
           </div>
         </div>
         {contact.unreadCount ? (

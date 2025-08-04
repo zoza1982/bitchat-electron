@@ -40,6 +40,17 @@ export const IPC_CHANNELS = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   
+  // Transport Preferences
+  TRANSPORT_PREFERENCES_GET: 'transport:preferences:get',
+  TRANSPORT_PREFERENCES_SET: 'transport:preferences:set',
+  TRANSPORT_PREFERENCES_RESET: 'transport:preferences:reset',
+  
+  // Nostr Relay Management
+  NOSTR_RELAY_ADD: 'nostr:relay:add',
+  NOSTR_RELAY_REMOVE: 'nostr:relay:remove',
+  NOSTR_RELAY_CONNECT: 'nostr:relay:connect',
+  NOSTR_RELAY_DISCONNECT: 'nostr:relay:disconnect',
+  
   // Errors
   ERROR_OCCURRED: 'error:occurred'
 } as const;
@@ -86,6 +97,9 @@ export interface PeerInfo {
   isBlocked: boolean;
   lastSeen?: string;
   sessionEstablished: boolean;
+  transport: 'ble' | 'nostr' | 'both';
+  nostrPublicKey?: string;
+  bleAddress?: string;
 }
 
 export interface PeerConnectionEvent {
@@ -145,11 +159,21 @@ export interface BLEStatus {
   };
 }
 
+export interface NostrRelayInfo {
+  url: string;
+  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  error?: string;
+  activeSubscriptions: number;
+}
+
 export interface NostrStatus {
   isEnabled: boolean;
   isConnected: boolean;
+  publicKey?: string;
   connectedRelays: number;
   totalRelays: number;
+  relays: NostrRelayInfo[];
+  peers: number;
 }
 
 export interface ConnectionStats {
@@ -170,6 +194,33 @@ export interface AppSettings {
   theme: 'dark' | 'light' | 'auto';
   fontSize: 'small' | 'medium' | 'large';
   blockedPeers: string[];
+}
+
+// Transport Preferences Types
+export interface TransportPreferences {
+  preferredTransport: 'ble' | 'nostr' | 'auto';
+  autoConnect: boolean;
+  bleSettings: {
+    deviceName: string;
+    autoAdvertise: boolean;
+    discoverabilityTimeout: number; // minutes
+  };
+  nostrSettings: {
+    autoConnectRelays: boolean;
+    maxRelayConnections: number;
+    defaultRelays: string[];
+    reconnectAttempts: number;
+  };
+  hybridSettings: {
+    priority: 'ble' | 'nostr' | 'balanced';
+    fallbackBehavior: 'switch' | 'maintain-both';
+    connectionTimeout: number; // seconds
+  };
+}
+
+// Nostr Relay Management Types
+export interface NostrRelayRequest {
+  url: string;
 }
 
 // Error Types
@@ -219,6 +270,17 @@ export interface BitChatAPI {
   // Settings
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => Promise<void>;
+  
+  // Transport Preferences
+  getTransportPreferences: () => Promise<TransportPreferences>;
+  setTransportPreferences: (preferences: Partial<TransportPreferences>) => Promise<void>;
+  resetTransportPreferences: () => Promise<void>;
+  
+  // Nostr Relay Management
+  addNostrRelay: (url: string) => Promise<void>;
+  removeNostrRelay: (url: string) => Promise<void>;
+  connectNostrRelay: (url: string) => Promise<void>;
+  disconnectNostrRelay: (url: string) => Promise<void>;
   
   // Errors
   onError: (callback: (error: AppError) => void) => void;
